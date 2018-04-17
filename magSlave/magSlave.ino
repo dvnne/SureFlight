@@ -59,6 +59,6 @@ void loop(void)
     heading = 360 + heading;
   }
 //  Serial.print("Compass Heading: ");
-  Serial.println(heading);
+  Serial.print(heading);
   delay(3000);
 }

@@ -28,6 +28,7 @@ float ry = 61.635;
 // SETUP //
 void setup(void) {
   Serial.begin(9600);
+  Serial1.begin(9600);
   pinMode(m1, OUTPUT);
   pinMode(m2, OUTPUT);
   pinMode(dir, OUTPUT);
@@ -50,8 +51,8 @@ void loop(void) {
   static unsigned long oldTime = 0;
   // SERIAL EVENTS //
   // Print data from Arduino 2
-  while (Serial1.available() > 0) {
-    int incomingByte = Serial.read();
+  if (Serial1.available() > 0) {
+    float incomingByte = Serial1.parseFloat();
     Serial.print("I recieved: ");
     Serial.println(incomingByte);
   }
@@ -86,7 +87,7 @@ int getPosition(int angle){
   float rotation = angle/360.; // fraction of arc to rotate
   Serial.print("Setting Rotation to ");
   Serial.println(rotation);
-  int steps = rotation * stepsPerRotation;
+  int steps = (angle * stepsPerRotation)/360;
   return steps;
 }
 
@@ -122,8 +123,9 @@ float calculateHeading(){
 }
 
 void step(int motor, int n){
+  unsigned long start = millis();
+  delay(10);
   for (int i=0; i < n; i++){
-    Serial.println("Stepping");
     digitalWrite(motor, LOW);
     delay(50);
     digitalWrite(motor, HIGH);
