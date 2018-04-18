@@ -4,9 +4,10 @@
 
 // Set motor pins
 int m1 = 2;
-int m2 = 3;
-int dir = 4;
+int m2 = 4;
+int dir = 3;
 float Pi = 3.14159;
+int button = 6;
 
 /* Assign a unique ID to this sensor at the same time */
 Adafruit_LSM303_Mag_Unified mag = Adafruit_LSM303_Mag_Unified(12345);
@@ -33,6 +34,7 @@ void setup(void) {
   pinMode(m2, OUTPUT);
   pinMode(dir, OUTPUT);
   digitalWrite(dir, LOW); // Initialize stepper in forward direction 
+  pinMode(button, INPUT);
   // Initialize sensor
   if(!mag.begin()) {
     /* There was a problem detecting the LSM303 ... check your connections */
@@ -67,6 +69,9 @@ void loop(void) {
       motorPosition = newPosition;
     }
   }
+  if (digitalRead(button) == HIGH){
+    step(m2, 400);
+  }
   // Read Magnetometer 1
   getSensorEvent();
   float heading = calculateHeading();
@@ -83,11 +88,14 @@ void printCompassHeading(float heading) {
 }
 
 int getPosition(int angle){
+  int steps;
+  int gearRatio = 47;
   int stepsPerRotation = 400;
   float rotation = angle/360.; // fraction of arc to rotate
   Serial.print("Setting Rotation to ");
   Serial.println(rotation);
-  int steps = (angle * stepsPerRotation)/360;
+  steps = (angle * stepsPerRotation)/360;
+  steps = steps * gearRatio;
   return steps;
 }
 
@@ -127,9 +135,9 @@ void step(int motor, int n){
   delay(10);
   for (int i=0; i < n; i++){
     digitalWrite(motor, LOW);
-    delay(50);
+    delay(10);
     digitalWrite(motor, HIGH);
-    delay(50);
+    delay(10);
   }
   digitalWrite(motor, LOW);
 }
