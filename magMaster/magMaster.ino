@@ -70,7 +70,9 @@ void loop(void) {
     }
   }
   if (digitalRead(button) == HIGH){
-    step(m2, 400);
+    for (int i=0, i < 400, i++){
+      step(m2, 1);
+    }
   }
   // Read Magnetometer 1
   getSensorEvent();
