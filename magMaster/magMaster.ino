@@ -129,7 +129,7 @@ float calculateHeading(){
   float heading = (atan2(y,x) * 180) / Pi; // Calculate the angle of the vector y,x
   // Normalize to 0-360
   if (heading < 0) heading = 360 + heading;
-  return heading;
+  return heading
 }
 
 void step(int motor, int n){
