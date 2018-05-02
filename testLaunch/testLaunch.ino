@@ -15,6 +15,12 @@ float Pi = 3.14159;
 int pos0 = 0;
 int pos1 = 0;
 
+// Magnetometers
+/* Assign a unique ID to this sensor at the same time */
+Adafruit_LSM303_Mag_Unified mag = Adafruit_LSM303_Mag_Unified(12345);
+float x;
+float y;
+
 void setup(){
   Serial.begin(9600);
   // Output Pins
@@ -25,17 +31,24 @@ void setup(){
   pinMode(dir1, OUTPUT);
   pinMode(ena1, OUTPUT);
   // Input Pins
+  // Initialize sensor
+  if(!mag.begin()) {
+    /* There was a problem detecting the LSM303 ... check your connections */
+    Serial.println("Ooops, no LSM303 detected ... Check your wiring!");
+    while(1);
+  }
 }
 
 void loop(){
-  // Delayed Events //
   static unsigned long time = 0;
   static unsigned long oldTime = 0;
-  int T = 1000;
+  int T = 100;
   time = millis() / T;
+  // Delayed Events //
   if (time != oldTime){
-    Serial.println("Timer Event");
-    // Print Magnetometer 0
+    // Read Magnetometer 0
+    getSensorEvent();
+    printxy();
     // Print Magnetometer 1
     // Print Wind Speed
     oldTime = time;
@@ -145,4 +158,31 @@ int calculateSteps(int motor, int currentPosition, int angle){
   Serial.print("Displacement = ");
   Serial.println(disp);
   return disp;
+}
+
+void getSensorEvent(){
+  sensors_event_t event; 
+  mag.getEvent(&event);
+  x = event.magnetic.x;
+  y = event.magnetic.y;
+  // x = (x-offx) * ry / rx;
+  // y = y - offy;
+}
+
+// Serial.print("Compass Heading: ");
+void printCompassHeading(float heading) {
+  Serial.println(heading);
+}
+
+float calculateHeading(){
+  float heading = (atan2(y,x) * 180) / Pi; // Calculate the angle of the vector y,x
+  // Normalize to 0-360
+  if (heading < 0) heading = 360 + heading;
+  return heading;
+}
+
+void printxy(){
+  Serial.print(x);
+  Serial.print('\t');
+  Serial.println(y);
 }
