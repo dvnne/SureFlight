@@ -6,13 +6,9 @@
 Adafruit_LSM303_Accel_Unified accel = Adafruit_LSM303_Accel_Unified(54321);
 Adafruit_LSM303_Mag_Unified mag = Adafruit_LSM303_Mag_Unified(12345);
 
-//float AccelMinX, AccelMaxX;
-//float AccelMinY, AccelMaxY;
-//float AccelMinZ, AccelMaxZ;
-//
-//float MagMinX, MagMaxX;
-//float MagMinY, MagMaxY;
-//float MagMinZ, MagMaxZ;
+/* This script prints raw accelerometer and magnetometer data to the serial output,
+   where it can be saved as a .csv and analyzed separately */
+
 
 float ax,ay,az;
 float mx,my,mz;
@@ -66,31 +62,5 @@ void loop(void)
     Serial.print(my); Serial.print(",");
     Serial.println(mz);
   }
-  
-//  if (accelEvent.acceleration.x < AccelMinX) AccelMinX = accelEvent.acceleration.x;
-//  if (accelEvent.acceleration.x > AccelMaxX) AccelMaxX = accelEvent.acceleration.x;
-//  
-//  if (accelEvent.acceleration.y < AccelMinY) AccelMinY = accelEvent.acceleration.y;
-//  if (accelEvent.acceleration.y > AccelMaxY) AccelMaxY = accelEvent.acceleration.y;
-//
-//  if (accelEvent.acceleration.z < AccelMinZ) AccelMinZ = accelEvent.acceleration.z;
-//  if (accelEvent.acceleration.z > AccelMaxZ) AccelMaxZ = accelEvent.acceleration.z;
-//
-//  if (magEvent.magnetic.x < MagMinX) MagMinX = magEvent.magnetic.x;
-//  if (magEvent.magnetic.x > MagMaxX) MagMaxX = magEvent.magnetic.x;
-//  
-//  if (magEvent.magnetic.y < MagMinY) MagMinY = magEvent.magnetic.y;
-//  if (magEvent.magnetic.y > MagMaxY) MagMaxY = magEvent.magnetic.y;
-//
-//  if (magEvent.magnetic.z < MagMinZ) MagMinZ = magEvent.magnetic.z;
-//  if (magEvent.magnetic.z > MagMaxZ) MagMaxZ = magEvent.magnetic.z;
-//
-//  if ((millis() - lastDisplayTime) > 1000)  // display once/second
-//  {
-//    Serial.print("Accel Minimums: "); Serial.print(AccelMinX); Serial.print("  ");Serial.print(AccelMinY); Serial.print("  "); Serial.print(AccelMinZ); Serial.println();
-//    Serial.print("Accel Maximums: "); Serial.print(AccelMaxX); Serial.print("  ");Serial.print(AccelMaxY); Serial.print("  "); Serial.print(AccelMaxZ); Serial.println();
-//    Serial.print("Mag Minimums: "); Serial.print(MagMinX); Serial.print("  ");Serial.print(MagMinY); Serial.print("  "); Serial.print(MagMinZ); Serial.println();
-//    Serial.print("Mag Maximums: "); Serial.print(MagMaxX); Serial.print("  ");Serial.print(MagMaxY); Serial.print("  "); Serial.print(MagMaxZ); Serial.println(); Serial.println();
-//    lastDisplayTime = millis();
-//  }
+
 }
