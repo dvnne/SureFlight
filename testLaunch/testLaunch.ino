@@ -46,21 +46,25 @@ void loop(){
     // Motor Select
     if (Serial.peek() == 'm'){
       int input = Serial.parseInt();
-      Serial.print("Motor Selected: ");
-      Serial.println(input);
-      if (input == 0) activeMotor = m0;
-      if (input == 1) activeMotor = m1;
+      if (input == 0){
+        activeMotor = m0;
+        Serial.print("Motor Selected: ");
+        Serial.println(input);
+      }
+      if (input == 1) {
+        activeMotor = m1;
+        Serial.print("Motor Selected: ");
+        Serial.println(input);
+      }
     }
     else {
+      int angle = Serial.parseInt();
       // Print Things
       Serial.print("Angle Selected: ");
       Serial.println(angle);
-      Serial.print("Active Motor: ");
-      Serial.print(activeMotor);
-      // Move (if it's a good idea)
-      int angle;
-      angle = Serial.parseInt();
-      // Determine if angle is valid
+      Serial.print("Active Motor Pin: ");
+      Serial.println(activeMotor);
+      // Set angle if appropriate
       if (isValidAngle(activeMotor, angle)){
         setPosition(activeMotor, angle);
       }
@@ -80,16 +84,46 @@ bool isValidAngle(int motor, int angle){
 }
 
 void setPosition(int motor, int angle){
-  int currentPosition, steps;
-  int dir = 1; // +1 forward | -1 reverse
-  // Find current position
-  if (motor = m0) currentPosition = pos0;
-  else if (motor = m1) currentPosition = pos1;
-  // Calculate steps required
+  int currentPosition, dirPin, steps;
+  // Set current pins and varaibles
+  if (motor == m0) {
+    currentPosition = pos0;
+    dirPin = dir0;
+  }
+  else if (motor == m1) {
+    currentPosition = pos1;
+    dirPin = dir1;
+  }
   steps = calculateSteps(motor, currentPosition, angle);
-  // Find path of least resistance - actually I don't feel like doing this now
   // Set direction
+  if (steps >= 0) {
+    digitalWrite(dirPin, HIGH);
+  }
+  else {
+    digitalWrite(dirPin, LOW);
+  }
+  // Move to position
+  stepMotor(motor, abs(steps));
   // Reset current position
+  currentPosition += steps;
+  if (motor == m0) pos0 = currentPosition;
+  else if (motor == m1) pos1 = currentPosition;
+  Serial.print("Motor 0 Position: ");
+  Serial.println(pos0);
+  Serial.print("Motor 1 Position: ");
+  Serial.println(pos1);
+}
+
+void stepMotor(int motorPin, int steps){
+  unsigned long start = millis();
+  delay(10);
+  for (int i=0; i < steps; i++){
+    digitalWrite(motorPin, LOW);
+    delay(10);
+    digitalWrite(motorPin, HIGH);
+    delay(10);
+  }
+  digitalWrite(motorPin, LOW);
 }
 
 int calculateSteps(int motor, int currentPosition, int angle){
@@ -98,9 +132,11 @@ int calculateSteps(int motor, int currentPosition, int angle){
   if (motor == m0) stepsPerRevolution = 47*400;
   else if (motor == m1) stepsPerRevolution = 4*400;
   // Convert selected angle to steps
-  unsigned long newPosition;
-  newPosition = angle * stepsPerRevolution / 360;
-  Serial.print("Setting Motor ");
+  float newPosition;
+  newPosition = angle / 360.;
+  newPosition = newPosition * stepsPerRevolution;
+  newPosition = (unsigned int) (newPosition + 0.5);
+  Serial.print("Setting Motor (Pin no)");
   Serial.print(motor);
   Serial.print(" to ");
   Serial.println(newPosition);
@@ -108,5 +144,5 @@ int calculateSteps(int motor, int currentPosition, int angle){
   int disp = newPosition - currentPosition;
   Serial.print("Displacement = ");
   Serial.println(disp);
-  return disp
+  return disp;
 }
