@@ -114,7 +114,7 @@ uiwait(LoadMessage) %makes whole GUI wait until load mode is exited
 %servalue= input('Enter the value 100 to turn ON LED & 101 to turn OFF LED :');
 
 %fprintf(s,servalue);
-fprintf(handles.s,120);
+fprintf(handles.s,119);
 %set load flag to 0
 %fclose(s);
 
@@ -126,30 +126,17 @@ function calibrate_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 %
+fprintf(handles.s,'31'); %tells ardunios to command  motors to move for calibration
+%show moving status
 set(handles.status, 'String', 'Moving')
 set(handles.status, 'BackgroundColor', [1 0.5 0])
-pause(1);
-fprintf(handles.s,31); %tells ardunios to command  motors to move for calibration
-%show moving status
 %if done calibrating, move motors to zero position
 %show status as ready
-% declare a 10 millisecond delay
- delaySec = 0.01; 
- % read from the serial port
- flag = fscanf(handles.s);
- %keep reading until the start data is returned
- while flag~=0
-     % pause
-     pause(.01); 
-     % try again
-     flag = fscanf(handles.s);
- end
-    %fprintf(handles.s,'31');
-    set(handles.status, 'String', 'Calibrated')
-    set(handles.status, 'BackgroundColor', [0 0 1])
-    set(handles.zeropad,'Enable','on')  %enable autoangle
-    set(handles.autoangle,'Enable','on')  %enable autoangle
-
+pause(5) %delay for now to observe proper functioning
+set(handles.status, 'String', 'Calibrated')
+set(handles.status, 'BackgroundColor', [0 0 1])
+set(handles.zeropad,'Enable','on')  %enable autoangle
+set(handles.autoangle,'Enable','on')  %enable autoangle
 
 
 % --- Executes on button press in autoangle.
