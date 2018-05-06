@@ -2,32 +2,26 @@
 #include <Adafruit_Sensor.h>
 #include <Adafruit_LSM303_U.h>
 
-float Pi = 3.141592653589793238462643383279502884197169; // you're welcome davonne
-int button = 1;
+float Pi = 3.141592653589793238462643383279502884197169; // youre welcome davonne
 bool calibrated = 0;
 bool launch = 0;
-int recValue; //received command from GUI
-int load = 0; //load flag
+int guiState = 0;
+bool enabled = 0;
+bool zeroed = 0;
 
 /* Set motor pins */
 // All motor values and pins are azimuth,polar
-int motor[] = {2,4};
-int dir[] = {3,5};
-int enable[] = {8,9};
-int limitswitch = 6;
+int motor[] = {2,5};
+int dir[] = {3,6};
+int enable[] = {4,7};
+int limitSwitch = 18;
+int calibrateButton = 19;
 
-int pos = {0,0};
-int gearRatio = {47,4};
+int pos[] = {0,0};
+int gearRatio[] = {47,4};
 int stepsPerRotation = 400;
 int motordelay = 10;
 
-/* Assign a unique ID to this sensor at the same time */
-Adafruit_LSM303_Mag_Unified mag = Adafruit_LSM303_Mag_Unified(12345);
-float x, y;
-float offx = 0;
-float offy = 0;
-float rx = 1;
-float ry = 1;
 
 /* Wind Speed pins and constants*/
 int anemometerPin = A0;
@@ -40,6 +34,9 @@ float windSpeedMin = 0; // Wind speed in meters/sec corresponding to minimum vol
 float voltageMax = 2.0; // Maximum output voltage from anemometer in V.
 float windSpeedMax = 32.4; // Wind speed in meters/sec corresponding to maximum voltage
 
+/* Wind Vane pins */
+int windVane[] = {30, 32, 34, 36, 38, 40, 42, 44};
+float windDir = 0;
 
 
 void setup(void) {
@@ -55,65 +52,63 @@ void setup(void) {
   pinMode(enable[0], OUTPUT);
   pinMode(enable[1],OUTPUT);
   disableMotors();
-  // pinMode(button, INPUT);
 
-  // Initialize sensor
-  if(!mag.begin()) {
-    /* There was a problem detecting the LSM303 ... check your connections */
-    Serial.println("Ooops, no LSM303 detected ... Check your wiring!");
-    while(1);
+  pinMode(limitSwitch, INPUT);
+  pinMode(calibrateButton,INPUT);
+  attachInterrupt(digitalPinToInterrupt(calibrateButton), calibratePolar, RISING);
+
+  for (int i=0; i < 8; i++){
+    pinMode(windVane[i], INPUT);
   }
+
 }
 
 
 void loop() {
-  if(Serial.available()>0)
-  {
-    recValue=Serial.parseInt();
+  if(Serial.available()>0) {
+    guiState=Serial.parseInt();
 
-    if (recValue < 3602){
-      int selectedMotor = recValue%2;
-      int selectedAngle = recValue/10;
-      //move selected motor to selected angle
-      Serial.println(9999);//tells MATLAB done moving
-
+    if (guiState < 3602) {
+      if (calibrated) {
+        manualMotors();
+      } else {
+        uncalibrated();
+      }
     }
     
-  }else if(recValue == 4001)            // load mode activated by MATLAB      
-     { 
-      load = 1;
-      disableMotors;
-     }
-   else if(recValue == 4000)          // load mode deactivated  by MATLAB 
-     { 
-      load = 0;
-      enableMotors;
-     }
-//    else if(recValue == 5001)  { // calibration mode activated
-//		calibrated = 1;
-//		calibrateMagnetometer();
-//		zeroMotors();
-//    Serial.println(5000);//tells MATLAB done calibrating
-	}
-	elseif(recValue == 6001){ // CHANGE TO USER INPUT ZERO ALL MOTORS
-		if (calibrated) {
-			enableMotors();
-			zeroMotors();
-     Serial.println(6000);//tells MATLAB done zeroing
-//		} else {
-//			/////////////////////DISPLAY ERROR
-//		}
-	}}
-	elseif (recValue == 7001){ //AAD has been pressed in GUI
-	  AAD(); 
-   Serial.println(7000);//tells MATLAB done with AAD
-	}
-  
+    } else if(guiState == 4000) { // load mode activated by GUI 
+        disableMotors();
+    } else if(guiState == 4001) { // load mode deactivated by GUI 
+        enableMotors();
 
+    } else if(guiState == 6001) { // zero mode activated by GUI
 
+      if (calibrated) {
+        zeroMotors();
+        Serial.println(6000); // tells GUI done zeroing
+      } else {
+        uncalibrated();
+      }
+
+    } else if (guiState == 7001){ //AAD activated by GUI
+      if (calibrated) {
+        AAD(); 
+        Serial.println(7000); // tells GUI done with AAD
+      } else {
+        uncalibrated();
+      }
+
+    }
+}
+
+void uncalibrated() {
+  Serial.println(8000);
 }
 
 void AAD() {
+  if (zeroed == 0) {
+    zeroMotors();
+  }
 	getWindDirection();
 	getWindSpeed();
 
@@ -125,22 +120,39 @@ void AAD() {
 
 }
 
+void manualMotors(){
+  if (zeroed == 0) {
+    zeroMotors();
+  }
+  int selectedMotor = guiState%2;
+  int selectedAngle = guiState/10;
+  if (selectedMotor == 0) {
+    moveAngles(selectedAngle, pos[1]);
+  }
+  else {
+    moveAngles(pos[0], selectedAngle);
+  }
+  Serial.println(9999);
+}
+
 ////////////////////////////
 /* Motor Helper Functions */
 ////////////////////////////
 
 void disableMotors() {
+  enabled = 0;
   digitalWrite(enable[0],HIGH);
   digitalWrite(enable[1],HIGH);
 	// command both motors to disable
 }
 
 void enableMotors() {
+  enabled = 1;
 	digitalWrite(enable[0],LOW);
 	digitalWrite(enable[1],LOW);
 }
 
-int getPosition(int m, int angle){
+int calcSteps(int m, int angle){
   int steps;
   float rotation = angle/360.; // fraction of arc to rotate
   Serial.print("Setting Rotation to ");
@@ -159,16 +171,24 @@ void setPosition(int m, int curPosition, int position) {
   // Rotate motor
   Serial.print("Setting Position -- Displacement = ");
   Serial.println(disp);
-  if (disp != 0) step(m, abs(disp),sign);
+  if (disp != 0) {
+    if (m == 0 and digitalRead(limitSwitch) == HIGH) {
+      pos[0] = 0;
+      Serial.println(9000);
+      return;
+    } else{
+      step(m, abs(disp),sign);
+    }
+  }
 }
 
 void moveAngles(int azimuthAngle, int polarAngle) {
 	if (azimuthAngle <= 20 && polarAngle <= 360) {
-    int newAzimuth = getPosition(0, azimuthAngle); // units of steps
+    int newAzimuth = calcSteps(0, azimuthAngle); // units of steps
     setPosition(0, pos[0], newAzimuth);
     pos[0] = newAzimuth;
 
-    int newPolar = getPosition(1, polarAngle);
+    int newPolar = calcSteps(1, polarAngle);
     setPosition(1, pos[1],newPolar);
     pos[1] = newPolar;
   }
@@ -187,70 +207,47 @@ void step(int m, int steps, int direction){
 }
 
 void zeroMotors() {
-	//CHECK MOTOR DIRECTIONS /////////////////////////////////////////////////////////////////
-	if (calibrated == 0) {
-		//DISPLAY ERROR TO USER
-		return;
-	}
-	digitalWrite(enable[0],LOW);
-  digitalWrite(enable[1],LOW);
-	while (digitalRead(limitswitch) == LOW) {
+	//CHECK MOTOR DIRECTIONS /////////////////////////////////
+  enableMotors();
+	while (digitalRead(limitSwitch) == LOW) {
 		step(0, 1, HIGH);
-		pos[0] = 0;
+		
 	}
 	step(0,pos[1],HIGH);
-	pos[1] = 0;
+	pos[0] = 0;
+	pos[1] = 1;
+  zeroed = 1;
+}
+
+void calibratePolar() {
+  calibrated = 1;
+  pos[1] = 0;
 }
 
 /////////////////////////////
 /* Sensor Helper Functions */
 /////////////////////////////
 
-void calibrateMagnetometer() {
-	int xmax = 0;
-	int xmin = 1000;
-	int ymax = 0;
-	int ymin = 1000;
-	for (int i=0; i<stepsPerRotation, i++) {
-		getSensorEvent();
-		step(polar,1,LOW);
-		if (x > xmax) xmax = x;
-		if (x < xmin) xmin = x;
-		if (y > ymax) ymax = y;
-		if (y < ymin) ymin = y;
-	}
-
-	offx = (xmax + xmin) / 2;
-	offy = (ymax + ymin) / 2;
-	rx = (xmax - xmin) / 2;
-	ry = (ymax - ymin) / 2;
-
-	getSensorEvent();
-	polarpos = calculateHeading();
-}
-
-void getSensorEvent(){
-  sensors_event_t event; 
-  mag.getEvent(&event);
-  x = event.magnetic.x;
-  y = event.magnetic.y;
-  x = (x-offx) * ry / rx;
-  y = y - offy;
-}
-
-float calculateHeading(){
-  float heading = (atan2(y,x) * 180) / Pi; // Calculate the angle of the vector y,x
-  // Normalize to 0-360
-  if (heading < 0) heading = 360 + heading;
-  return heading;
-}
-
 void getWindDirection() {
 	// read input from other arduino
+
+  unsigned int n = 0;
+    for (int i=7; i > -1; i--){
+        int b = digitalRead(windVane[i]);
+        Serial.print(b);
+        if (b){
+            float t = pow(2, i);
+            t += 0.5;
+            t = int(t);
+            n += t;
+        }
+    }
+   windDir = n;
+
 }
 
 void getWindSpeed() {
-	anemometerVoltage = analogread(anemometerPin) * voltageConversionConstant;
+	anemometerVoltage = analogRead(anemometerPin) * voltageConversionConstant;
 	//Convert voltage value to wind speed using range of max and min voltages and wind speed for the anemometer
 	if (anemometerVoltage <= voltageMin){
 		//Check if voltage is below minimum value. If so, set wind speed to zero.
