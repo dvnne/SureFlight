@@ -71,30 +71,44 @@ fopen(s);
 pause(2.5);
 
 [handles(:).s] = s;
-
-    set(handles.polarlabel,'Enable','on')  %enable autoangle
-    set(handles.polarinput,'Enable','on')  %enable autoangle
-    set(handles.azimuthlabel,'Enable','on')  %enable autoangle
-    set(handles.azimuthinput,'Enable','on')  %enable autoangle
-    set(handles.movePolar,'Enable','on')  %enable move polar button
-    set(handles.moveAzimuth,'Enable','on')  %enable move azimtuh button
+%set(handles.autoangle,'Enable','on')  %enable autoangle
+%     set(handles.polarlabel,'Enable','on')  %enable autoangle
+%     set(handles.polarinput,'Enable','on')  %enable autoangle
+%     set(handles.azimuthlabel,'Enable','on')  %enable autoangle
+%     set(handles.azimuthinput,'Enable','on')  %enable autoangle
+%     set(handles.movePolar,'Enable','on')  %enable move polar button
+%     set(handles.moveAzimuth,'Enable','on')  %enable move azimtuh button
 
 %flag setup
-[handles(:).flags(:).loadon] = '4001';
-[handles(:).flags(:).loadoff] = '4000';
-[handles(:).flags(:).autoon] = '7001';
-[handles(:).flags(:).autooff] = '7000';
-[handles(:).flags(:).zeroon] = '6001';
-[handles(:).flags(:).zerooff] = '6000';
-[handles(:).flags(:).manualdone] = '9999';
+flags.loadon = '5001';
+flags.loadoff = '5000';
+flags.autoon = '7001';
+flags.autooff = '7000';
+flags.zeroon = '6001';
+flags.zerooff = '6000';
+flags.manualdone = '9999';
+flags.calerror = '8000';
+flags.limerror = '9000';
 
 
-%ASK IF THEY HAVE CALIBRATED
+%ASKING IF THE USER HAS CALIBRATED
+answer = questdlg('Have you calibrated the wind station and the pad?', ...
+	'Calibration Check','Yes','No', 'No');
+
+switch answer
+    case 'Yes'
+        handles(:).calibrated = 1;
+    case 'No'
+        while strcmp(answer, 'No')
+            uiwait(warndlg('Please calibrate wind station and pad to continue.','Warning'));
+            handles(:).calibrated = 0;
+            answer = questdlg('Have you calibrated the wind station and the pad?', ...
+            'Calibration Check','Yes','No','No');
+        end
+end
+
+handles(:).flags = flags;
 guidata(hObject, handles);
-
-
-
-
 
 % UIWAIT makes guiv1 wait for user response (see UIRESUME)
 % uiwait(handles.figure1);
@@ -130,14 +144,47 @@ function autoangle_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 %show moving status
-set(handles.status, 'String', 'Moving')
+set(handles.status, 'String', 'MOVING')
 set(handles.status, 'BackgroundColor', [1 0.5 0])
+%disable evrything while moving
+set(handles.polarinput,'Enable','off')  %disable
+set(handles.azimuthinput,'Enable','off')  %disable
+set(handles.movePolar,'Enable','off')  %disable move polar button
+set(handles.moveAzimuth,'Enable','off')  %disable move azimtuh button
+set(handles.zeropad, 'Enable', 'off')
+set(handles.loadunload, 'Enable', 'off')
+set(handles.manualmode, 'Enable', 'off')
+set(handles.autoangle, 'Enable', 'off')
+drawnow
 fprintf(handles.s,handles.flags.autoon); %tell motors to move to ideal angle
-getCommand(handles.s, str2num(handles.flags.autooff)); %waits for command from arduino
-%show status as ready
-set(handles.status, 'String', 'Ready')
-set(handles.status, 'BackgroundColor', [0 1 0])
-set(handles.manualmode,'Enable','on')  %enable manual mode
+flag = getCommand(handles.s, [str2num(handles.flags.calerror),...
+    str2num(handles.flags.limerror), str2num(handles.flags.autooff)]); %waits for command from arduino
+%enable evrything done moving
+set(handles.polarinput,'Enable','on')  %disable
+set(handles.azimuthinput,'Enable','on')  %disable
+set(handles.movePolar,'Enable','on')  %disable move polar button
+set(handles.moveAzimuth,'Enable','on')  %disable move azimtuh button
+set(handles.zeropad, 'Enable', 'on')
+set(handles.loadunload, 'Enable', 'on')
+set(handles.manualmode, 'Enable', 'on')
+set(handles.autoangle, 'Enable', 'on')
+if flag == 8000
+    errordlg('Pad not calibrated!','Calibration Error');
+    set(handles.status, 'String', 'NOT READY')
+    set(handles.status, 'BackgroundColor', [1 0 0])
+    set(handles.manualmode,'Enable','off')  %disable manual mode
+    set(handles.autoangle,'Enable','off')  %disable manual mode
+elseif flag == 9000
+    errordlg('Pad not zeroed! Re-zero and try again.','Zeroing Error');
+    set(handles.status, 'String', 'NOT READY')
+    set(handles.status, 'BackgroundColor', [1 0 0])
+    set(handles.manualmode,'Enable','off')  %disable manual mode
+    set(handles.autoangle,'Enable','off')  %disable manual mode
+else
+    set(handles.status, 'String', 'READY')
+    set(handles.status, 'BackgroundColor', [0 1 0])
+    set(handles.manualmode,'Enable','on')  %disable manual mode
+end
 
 
 % --- Executes on button press in manualmode.
@@ -156,12 +203,12 @@ if get(handles.manualmode, 'Value')
     set(handles.movePolar,'Enable','on')  %enable move polar button
     set(handles.moveAzimuth,'Enable','on')  %enable move azimtuh button
 else
-    set(handles.polarlabel,'Enable','off')  %enable autoangle
-    set(handles.polarinput,'Enable','off')  %enable autoangle
-    set(handles.azimuthlabel,'Enable','off')  %enable autoangle
-    set(handles.azimuthinput,'Enable','off')  %enable autoangle
-    set(handles.movePolar,'Enable','off')  %enable move polar button
-    set(handles.moveAzimuth,'Enable','off')  %enable move azimtuh button
+    set(handles.polarlabel,'Enable','off')  %disable
+    set(handles.polarinput,'Enable','off')  %disable
+    set(handles.azimuthlabel,'Enable','off')  %disable 
+    set(handles.azimuthinput,'Enable','off')  %disable
+    set(handles.movePolar,'Enable','off')  %disable move polar button
+    set(handles.moveAzimuth,'Enable','off')  %disable move azimtuh button
 end
 
 
@@ -171,14 +218,55 @@ function zeropad_Callback(hObject, eventdata, handles)
 % hObject    handle to zeropad (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-s%show moving status
-set(handles.status, 'String', 'Moving')
+%show moving status
+set(handles.status, 'String', 'MOVING')
 set(handles.status, 'BackgroundColor', [1 0.5 0])
+
+%disable everything while moving
+set(handles.polarinput,'Enable','off')  %disable
+set(handles.azimuthinput,'Enable','off')  %disable
+set(handles.movePolar,'Enable','off')  %disable move polar button
+set(handles.moveAzimuth,'Enable','off')  %disable move azimtuh button
+set(handles.zeropad, 'Enable', 'off')
+set(handles.loadunload, 'Enable', 'off')
+set(handles.manualmode, 'Enable', 'off')
+set(handles.autoangle, 'Enable', 'off')
+
+drawnow;
 fprintf(handles.s,handles.flags.zeroon);%tell motors to move to ideal angle
-getCommand(handles.s, str2num(handles.flags.zerooff));%wait for message from arduino
-%show status as zeroed
-set(handles.status, 'String', 'Zeroed');
-set(handles.status, 'BackgroundColor', [0 0 1]);
+flag = getCommand(handles.s, [str2num(handles.flags.calerror),...
+    str2num(handles.flags.limerror), str2num(handles.flags.zerooff)]); %waits for command from arduino
+
+set(handles.polarinput,'Enable','on')  %disable
+set(handles.azimuthinput,'Enable','on')  %disable
+set(handles.movePolar,'Enable','on')  %disable move polar button
+set(handles.moveAzimuth,'Enable','on')  %disable move azimtuh button
+set(handles.zeropad, 'Enable', 'on')
+set(handles.loadunload, 'Enable', 'on')
+set(handles.manualmode, 'Enable', 'on')
+set(handles.autoangle, 'Enable', 'on')
+
+if flag == 8000
+    errordlg('Pad not calibrated!','Calibration Error');
+    set(handles.status, 'String', 'NOT READY')
+    set(handles.status, 'BackgroundColor', [1 0 0])
+    set(handles.manualmode,'Value',0)  %disable manual mode
+    set(handles.manualmode,'Enable','off')  %disable manual mode
+    set(handles.autoangle,'Enable','off')  %disable manual mode
+elseif flag == 9000
+    errordlg('Pad not zeroed! Re-zero and try again.','Zeroing Error');
+    set(handles.status, 'String', 'NOT READY')
+    set(handles.status, 'BackgroundColor', [1 0 0])
+    set(handles.manualmode,'Value',0)  %disable manual mode
+    set(handles.manualmode,'Enable','off')  %disable manual mode
+    set(handles.autoangle,'Enable','off')  %disable auto mode
+else
+    set(handles.status, 'String', 'Zeroed');
+    set(handles.status, 'BackgroundColor', [.12 .56 1]);
+    set(handles.manualmode,'Enable','on')  %enable manual mode
+    set(handles.autoangle,'Enable','on')  %enable manual mode
+end
+
 
 
 
@@ -234,26 +322,61 @@ function movePolar_Callback(hObject, eventdata, handles)
 % hObject    handle to movePolar (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
+
 [handles(:).polar] = get(handles.polarinput,'String'); %get data from text input
-%check if datat in valid range and integer
+%check if data in valid range and integer
 if (0 <= str2num(handles.polar)) && (str2num(handles.polar) <= 360) && (rem(str2num(handles.polar), 1) ==0)
-    cmd = strcat(handles.polar, '1');
+    polarsend = str2num(handles.polar) +100;
+    cmd = strcat(num2str(polarsend), '1');
    
-    set(handles.status, 'String', 'Moving')
-    set(handles.status, 'BackgroundColor', [1 0.5 0])
-    %disable the gui while moving
-    InterfaceObj=findobj(guiv1,'Enable','on');
-    set(InterfaceObj,'Enable','off');
-    set(handles.status, 'Enable', 'on')
- 
+    set(handles.status, 'String', 'MOVING')
+    set(handles.status, 'BackgroundColor', [1 0.5 0])    
+    %disable everything while moving
+    set(handles.polarinput,'Enable','off')  %disable
+    set(handles.azimuthinput,'Enable','off')  %disable
+    set(handles.movePolar,'Enable','off')  %disable move polar button
+    set(handles.moveAzimuth,'Enable','off')  %disable move azimtuh button
+    set(handles.zeropad, 'Enable', 'off')
+    set(handles.loadunload, 'Enable', 'off')
+    set(handles.manualmode, 'Enable', 'off')
+    set(handles.autoangle, 'Enable', 'off') 
+    drawnow
     fprintf(handles.s,cmd);%tell motors to move to ideal angle
-    getCommand(handles.s, str2num(handles.flags.manualdone))
+    flag = getCommand(handles.s, [str2num(handles.flags.calerror),...
+    str2num(handles.flags.limerror), str2num(handles.flags.manualdone)]); %waits for command from arduino
     
-    set(handles.status, 'String', 'Ready')
-    set(handles.status, 'BackgroundColor', [0 1 0])
-    % We turn back on the interface
-    set(InterfaceObj,'Enable','on')
-    
+    set(handles.polarinput,'Enable','on')  %disable
+    set(handles.azimuthinput,'Enable','on')  %disable
+    set(handles.movePolar,'Enable','on')  %disable move polar button
+    set(handles.moveAzimuth,'Enable','on')  %disable move azimtuh button
+    set(handles.zeropad, 'Enable', 'on')
+    set(handles.loadunload, 'Enable', 'on')
+    set(handles.manualmode, 'Enable', 'on')
+    set(handles.autoangle, 'Enable', 'on')
+    if flag == 8000
+        errordlg('Pad not calibrated!','Calibration Error');
+        set(handles.status, 'String', 'NOT READY')
+        set(handles.status, 'BackgroundColor', [1 0 0])
+        % We turn back on the interface
+        set(InterfaceObj,'Enable','on')
+        set(handles.manualmode,'Value',0)  %disable manual mode
+        set(handles.manualmode,'Enable','off')  %disable manual mode
+        set(handles.autoangle,'Enable','off')  %disable auto mode
+    elseif flag == 9000
+        errordlg('Pad not zeroed! Re-zero and try again.','Zeroing Error');
+        set(handles.status, 'String', 'NOT READY')
+        set(handles.status, 'BackgroundColor', [1 0 0])
+        % We turn back on the interface
+        set(InterfaceObj,'Enable','on')
+        set(handles.manualmode,'Value',0)  %disable manual mode
+        set(handles.manualmode,'Enable','off')  %disable manual mode
+        set(handles.autoangle,'Enable','off')  %disable manual mode
+    else
+        set(handles.status, 'String', 'READY');
+        set(handles.status, 'BackgroundColor', [0 1 0]);
+          % We turn back on the interface
+        %set(InterfaceObj,'Enable','on')
+    end   
 else
     f = errordlg('Polar input angle must be an integer between 0 and 360','RangeError');
     uiwait(f)
@@ -268,34 +391,58 @@ function moveAzimuth_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 [handles(:).azimuth] = get(handles.azimuthinput,'String');
-
-if (0<= handles.azimuth) && (handles.azimuth <= 20) && (rem(handles.azimuth, 1) ==0)
-    cmd = str2num(strcat(handles.azimuth, '0'));
+    
+%check if input angle is an integer between 0 and 20
+if (0<= str2num(handles.azimuth)) && (str2num(handles.azimuth) <= 20) && (rem(str2num(handles.azimuth), 1) ==0)
+    azimuthsend = str2num(handles.azimuth)+100;
+    cmd = strcat(num2str(azimuthsend), '0');
     set(handles.status, 'String', 'Moving')
     set(handles.status, 'BackgroundColor', [1 0.5 0])
-    InterfaceObj=findobj(guiv1,'Enable','on');
-    set(InterfaceObj,'Enable','off');
-    set(handles.status, 'Enable', 'on')
- 
+    %disable everything while moving
+    set(handles.polarinput,'Enable','off')  %disable
+    set(handles.azimuthinput,'Enable','off')  %disable
+    set(handles.movePolar,'Enable','off')  %disable move polar button
+    set(handles.moveAzimuth,'Enable','off')  %disable move azimtuh button
+    set(handles.zeropad, 'Enable', 'off')
+    set(handles.loadunload, 'Enable', 'off')
+    set(handles.manualmode, 'Enable', 'off')
+    set(handles.autoangle, 'Enable', 'off')
+    
+    drawnow
     fprintf(handles.s,cmd);%tell motors to move to ideal angle
-    getCommand(9999, handles.s);
-%     flag = str2double(fgetl(handles.s));
-%     %keep reading until the start data is returned
-%     while flag ~= 9999
-%      % pause
-%      pause(.01); 
-%      % try again
-%      flag = str2double(fgetl(handles.s));
-%     end
+        flag = getCommand(handles.s, [str2num(handles.flags.calerror),...
+    str2num(handles.flags.limerror), str2num(handles.flags.manualdone)]); %waits for command from arduino
 
-    set(handles.status, 'String', 'Ready')
-    set(handles.status, 'BackgroundColor', [0 1 0])
-    % We turn back on the interface
-    set(InterfaceObj,'Enable','on')
-    %end
-    set(handles.status, 'String', 'Ready')
-    set(handles.status, 'BackgroundColor', [0 1 0])
-    set(handles.manualmode,'Enable','on')  %enable manual mode
+    set(handles.polarinput,'Enable','on')  %disable
+    set(handles.azimuthinput,'Enable','on')  %disable
+    set(handles.movePolar,'Enable','on')  %disable move polar button
+    set(handles.moveAzimuth,'Enable','on')  %disable move azimtuh button
+    set(handles.zeropad, 'Enable', 'on')
+    set(handles.loadunload, 'Enable', 'on')
+    set(handles.manualmode, 'Enable', 'on')
+    set(handles.autoangle, 'Enable', 'on')
+
+    if flag == 8000
+        errordlg('Pad not calibrated!','Calibration Error');
+        set(handles.status, 'String', 'NOT READY')
+        set(handles.status, 'BackgroundColor', [1 0 0])
+        % We turn back on the interface
+        %set(InterfaceObj,'Enable','on')
+        set(handles.manualmode,'Value',0)  %disable manual mode
+        set(handles.manualmode,'Enable','off')  %disable manual mode
+        set(handles.autoangle,'Enable','off')  %disable auto mode
+    elseif flag == 9000
+        errordlg('Pad not zeroed! Re-zero and try again.','Zeroing Error');
+        set(handles.status, 'String', 'NOT READY')
+        set(handles.status, 'BackgroundColor', [1 0 0])
+        set(handles.manualmode,'Value',0)  %disable manual mode
+        set(handles.manualmode,'Enable','off')  %disable manual mode
+        set(handles.autoangle,'Enable','off')  %disable manual mode
+    else
+        set(handles.status, 'String', 'READY');
+        set(handles.status, 'BackgroundColor', [0 1 0]);
+    end 
+   
 else
     f = errordlg('Azimuth input angle must be an integer between 0 and 20','RangeError');
     uiwait(f)

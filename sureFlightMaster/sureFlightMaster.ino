@@ -74,28 +74,29 @@ void loop() {
     if (recValue < 3602){
       int selectedMotor = recValue%2;
       int selectedAngle = recValue/10;
-      Serial.println(selectedMotor);
-      Serial.println(selectedAngle);
+      //move selected motor to selected angle
+      Serial.println(9999);//tells MATLAB done moving
+
     }
     
-  }else if(recValue == 4000)            // load mode activated by MATLAB      
+  }else if(recValue == 4001)            // load mode activated by MATLAB      
      { 
       load = 1;
       disableMotors;
      }
-   else if(recValue == 4001)          // load mode deactivated  by MATLAB 
+   else if(recValue == 4000)          // load mode deactivated  by MATLAB 
      { 
       load = 0;
       enableMotors;
      }
-    else if(recValue == 5001)  { // calibration mode activated
-		calibrated = 1;
-		calibrateMagnetometer();
-		zeroMotors();
-    Serial.println(5000);//tells MATLAB done calibrating
+//    else if(recValue == 5001)  { // calibration mode activated
+//		calibrated = 1;
+//		calibrateMagnetometer();
+//		zeroMotors();
+//    Serial.println(5000);//tells MATLAB done calibrating
 	}
 	elseif(recValue == 6001){ // CHANGE TO USER INPUT ZERO ALL MOTORS
-		if calibrated {
+		if (calibrated) {
 			enableMotors();
 			zeroMotors();
      Serial.println(6000);//tells MATLAB done zeroing
