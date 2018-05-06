@@ -2,10 +2,12 @@
 #include <Adafruit_Sensor.h>
 #include <Adafruit_LSM303_U.h>
 
-float Pi = 3.141592653589793238462643383279502884197169; // youre welcome davonne
+float Pi = 3.141592653589793238462643383279502884197169; // you're welcome davonne
 int button = 1;
 bool calibrated = 0;
 bool launch = 0;
+int recValue; //received command from GUI
+int load = 0; //load flag
 
 /* Set motor pins */
 // All motor values and pins are azimuth,polar
@@ -65,20 +67,47 @@ void setup(void) {
 
 
 void loop() {
-	if calibrate { // CHANGE TO USER INPUT CALIBRATION SEQUENCE
+  if(Serial.available()>0)
+  {
+    recValue=Serial.parseInt();
+
+    if (recValue < 3602){
+      int selectedMotor = recValue%2;
+      int selectedAngle = recValue/10;
+      Serial.println(selectedMotor);
+      Serial.println(selectedAngle);
+    }
+    
+  }else if(recValue == 4000)            // load mode activated by MATLAB      
+     { 
+      load = 1;
+      disableMotors;
+     }
+   else if(recValue == 4001)          // load mode deactivated  by MATLAB 
+     { 
+      load = 0;
+      enableMotors;
+     }
+    else if(recValue == 5001)  { // calibration mode activated
 		calibrated = 1;
 		calibrateMagnetometer();
 		zeroMotors();
+    Serial.println(5000);//tells MATLAB done calibrating
 	}
-	if zeroAll { // CHANGE TO USER INPUT ZERO ALL MOTORS
+	elseif(recValue == 6001){ // CHANGE TO USER INPUT ZERO ALL MOTORS
 		if calibrated {
 			enableMotors();
 			zeroMotors();
-		} else {
-			/////////////////////DISPLAY ERROR
-		}
+     Serial.println(6000);//tells MATLAB done zeroing
+//		} else {
+//			/////////////////////DISPLAY ERROR
+//		}
+	}}
+	elseif (recValue == 7001){ //AAD has been pressed in GUI
+	  AAD(); 
+   Serial.println(7000);//tells MATLAB done with AAD
 	}
-	if calculateAngle AAD(); // CHANGE TO USER INPUT AAD????????????????
+  
 
 
 }

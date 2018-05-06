@@ -22,7 +22,7 @@ function varargout = guiv1(varargin)
 
 % Edit the above text to modify the response to help guiv1
 
-% Last Modified by GUIDE v2.5 30-Apr-2018 15:07:53
+% Last Modified by GUIDE v2.5 06-May-2018 10:09:53
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -68,15 +68,30 @@ fclose(serial('COM3','BAUD', 9600));
 s=serial('COM3','BAUD', 9600); % Make sure the baud rate and COM port is 
                               % same as in Arduino IDE
 fopen(s);
-% pause(2)
-% 
-% fprintf(s,'L1');
-% pause(2)
+pause(2.5);
 
-%setappdata(handles(:).guiv1,'s', s);
 [handles(:).s] = s;
-%handles.s = s;
+
+    set(handles.polarlabel,'Enable','on')  %enable autoangle
+    set(handles.polarinput,'Enable','on')  %enable autoangle
+    set(handles.azimuthlabel,'Enable','on')  %enable autoangle
+    set(handles.azimuthinput,'Enable','on')  %enable autoangle
+    set(handles.movePolar,'Enable','on')  %enable move polar button
+    set(handles.moveAzimuth,'Enable','on')  %enable move azimtuh button
+
+%flag setup
+[handles(:).flags(:).loadon] = '4001';
+[handles(:).flags(:).loadoff] = '4000';
+[handles(:).flags(:).autoon] = '7001';
+[handles(:).flags(:).autooff] = '7000';
+[handles(:).flags(:).zeroon] = '6001';
+[handles(:).flags(:).zerooff] = '6000';
+[handles(:).flags(:).manualdone] = '9999';
+
+
+%ASK IF THEY HAVE CALIBRATED
 guidata(hObject, handles);
+
 
 
 
@@ -103,54 +118,10 @@ function loadunload_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 %set( findall(handles.your_uipanel, '-property', 'Enable'), 'Enable', 'off')
-%set Load flag to 1
-          %This command will send entered value to Arduino 
 
-
-%pause(2)
-fprintf(handles.s,121);
+fprintf(handles.s,handles.flags.loadon);
 uiwait(LoadMessage) %makes whole GUI wait until load mode is exited
-
-%servalue= input('Enter the value 100 to turn ON LED & 101 to turn OFF LED :');
-
-%fprintf(s,servalue);
-fprintf(handles.s,120);
-%set load flag to 0
-%fclose(s);
-
-
-
-% --- Executes on button press in calibrate.
-function calibrate_Callback(hObject, eventdata, handles)
-% hObject    handle to calibrate (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-%
-set(handles.status, 'String', 'Moving')
-set(handles.status, 'BackgroundColor', [1 0.5 0])
-pause(1);
-fprintf(handles.s,31); %tells ardunios to command  motors to move for calibration
-%show moving status
-%if done calibrating, move motors to zero position
-%show status as ready
-% declare a 10 millisecond delay
- delaySec = 0.01; 
- % read from the serial port
- flag = fscanf(handles.s);
- %keep reading until the start data is returned
- while flag~=0
-     % pause
-     pause(.01); 
-     % try again
-     flag = fscanf(handles.s);
- end
-    %fprintf(handles.s,'31');
-    set(handles.status, 'String', 'Calibrated')
-    set(handles.status, 'BackgroundColor', [0 0 1])
-    set(handles.zeropad,'Enable','on')  %enable autoangle
-    set(handles.autoangle,'Enable','on')  %enable autoangle
-
-
+fprintf(handles.s,handles.flags.loadoff);
 
 % --- Executes on button press in autoangle.
 function autoangle_Callback(hObject, eventdata, handles)
@@ -158,13 +129,12 @@ function autoangle_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-%tell motors to move to ideal angle
 %show moving status
 set(handles.status, 'String', 'Moving')
 set(handles.status, 'BackgroundColor', [1 0.5 0])
-%if motors have stopped
+fprintf(handles.s,handles.flags.autoon); %tell motors to move to ideal angle
+getCommand(handles.s, str2num(handles.flags.autooff)); %waits for command from arduino
 %show status as ready
-pause(5) %delay for now to observe proper functioning
 set(handles.status, 'String', 'Ready')
 set(handles.status, 'BackgroundColor', [0 1 0])
 set(handles.manualmode,'Enable','on')  %enable manual mode
@@ -183,13 +153,15 @@ if get(handles.manualmode, 'Value')
     set(handles.polarinput,'Enable','on')  %enable autoangle
     set(handles.azimuthlabel,'Enable','on')  %enable autoangle
     set(handles.azimuthinput,'Enable','on')  %enable autoangle
-    set(handles.movemanual,'Enable','on')  %enable autoangle
+    set(handles.movePolar,'Enable','on')  %enable move polar button
+    set(handles.moveAzimuth,'Enable','on')  %enable move azimtuh button
 else
     set(handles.polarlabel,'Enable','off')  %enable autoangle
     set(handles.polarinput,'Enable','off')  %enable autoangle
     set(handles.azimuthlabel,'Enable','off')  %enable autoangle
     set(handles.azimuthinput,'Enable','off')  %enable autoangle
-    set(handles.movemanual,'Enable','off')  %enable autoangle
+    set(handles.movePolar,'Enable','off')  %enable move polar button
+    set(handles.moveAzimuth,'Enable','off')  %enable move azimtuh button
 end
 
 
@@ -199,11 +171,15 @@ function zeropad_Callback(hObject, eventdata, handles)
 % hObject    handle to zeropad (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
+s%show moving status
 set(handles.status, 'String', 'Moving')
 set(handles.status, 'BackgroundColor', [1 0.5 0])
-pause(5) %delay for now to observe proper functioning
-set(handles.status, 'String', 'Zeroed')
-set(handles.status, 'BackgroundColor', [0 0 1])
+fprintf(handles.s,handles.flags.zeroon);%tell motors to move to ideal angle
+getCommand(handles.s, str2num(handles.flags.zerooff));%wait for message from arduino
+%show status as zeroed
+set(handles.status, 'String', 'Zeroed');
+set(handles.status, 'BackgroundColor', [0 0 1]);
+
 
 
 
@@ -239,6 +215,7 @@ function azimuthinput_Callback(hObject, eventdata, handles)
 %        str2double(get(hObject,'String')) returns contents of azimuthinput as a double
 
 
+
 % --- Executes during object creation, after setting all properties.
 function azimuthinput_CreateFcn(hObject, eventdata, handles)
 % hObject    handle to azimuthinput (see GCBO)
@@ -252,14 +229,74 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
 end
 
 
-% --- Executes on button press in movemanual.
-function movemanual_Callback(hObject, eventdata, handles)
-% hObject    handle to movemanual (see GCBO)
+% --- Executes on button press in movePolar.
+function movePolar_Callback(hObject, eventdata, handles)
+% hObject    handle to movePolar (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
+[handles(:).polar] = get(handles.polarinput,'String'); %get data from text input
+%check if datat in valid range and integer
+if (0 <= str2num(handles.polar)) && (str2num(handles.polar) <= 360) && (rem(str2num(handles.polar), 1) ==0)
+    cmd = strcat(handles.polar, '1');
+   
+    set(handles.status, 'String', 'Moving')
+    set(handles.status, 'BackgroundColor', [1 0.5 0])
+    %disable the gui while moving
+    InterfaceObj=findobj(guiv1,'Enable','on');
+    set(InterfaceObj,'Enable','off');
+    set(handles.status, 'Enable', 'on')
+ 
+    fprintf(handles.s,cmd);%tell motors to move to ideal angle
+    getCommand(handles.s, str2num(handles.flags.manualdone))
+    
+    set(handles.status, 'String', 'Ready')
+    set(handles.status, 'BackgroundColor', [0 1 0])
+    % We turn back on the interface
+    set(InterfaceObj,'Enable','on')
+    
+else
+    f = errordlg('Polar input angle must be an integer between 0 and 360','RangeError');
+    uiwait(f)
+end
+guidata(hObject, handles);
 
-%get user input data (maybe do a check for 0-360 deg)
-%update status to moving
-%execute movements to motor
-%update status as read
 
+
+% --- Executes on button press in moveAzimuth.
+function moveAzimuth_Callback(hObject, eventdata, handles)
+% hObject    handle to moveAzimuth (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+[handles(:).azimuth] = get(handles.azimuthinput,'String');
+
+if (0<= handles.azimuth) && (handles.azimuth <= 20) && (rem(handles.azimuth, 1) ==0)
+    cmd = str2num(strcat(handles.azimuth, '0'));
+    set(handles.status, 'String', 'Moving')
+    set(handles.status, 'BackgroundColor', [1 0.5 0])
+    InterfaceObj=findobj(guiv1,'Enable','on');
+    set(InterfaceObj,'Enable','off');
+    set(handles.status, 'Enable', 'on')
+ 
+    fprintf(handles.s,cmd);%tell motors to move to ideal angle
+    getCommand(9999, handles.s);
+%     flag = str2double(fgetl(handles.s));
+%     %keep reading until the start data is returned
+%     while flag ~= 9999
+%      % pause
+%      pause(.01); 
+%      % try again
+%      flag = str2double(fgetl(handles.s));
+%     end
+
+    set(handles.status, 'String', 'Ready')
+    set(handles.status, 'BackgroundColor', [0 1 0])
+    % We turn back on the interface
+    set(InterfaceObj,'Enable','on')
+    %end
+    set(handles.status, 'String', 'Ready')
+    set(handles.status, 'BackgroundColor', [0 1 0])
+    set(handles.manualmode,'Enable','on')  %enable manual mode
+else
+    f = errordlg('Azimuth input angle must be an integer between 0 and 20','RangeError');
+    uiwait(f)
+end
