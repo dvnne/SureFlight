@@ -8,16 +8,19 @@ float x;
 float y;
 float xmax, ymax;
 float xmin, ymin;
-// Magnetometer 1 Calibration Values
+
 float offx = 0;
 float offy = 0;
 float rx = 0;
 float ry = 0;
+
 // Button
 int button = 12;
 bool isCalibrating = false; // should be true while button is being held
 // Useful Constants
 float Pi = 3.1415926535;
+// Output
+int outPins[] = {1, 2, 3, 4, 5, 6, 7};
 
 
 void setup(void) {
@@ -39,11 +42,17 @@ void loop(void) {
   // Event Actions
   getMagnetometerEvent();
   float heading = calculateHeading();
+  // SEND HEADING TO MEGA
+  int sendVal = map(heading,0,360,0,127);
+  write(sendVal);
+  
   if (time != oldTime) { // Run every T milliseconds
     Serial.print("Compass Heading: ");
     Serial.println(heading); // Print compass heading
     Serial.print("Button Reading");
     Serial.println(digitalRead(button));
+    Serial.print("7 bit number: ");
+    Serial.println(sendVal);
     oldTime = time;
   }
   // BUTTON EVENTS
@@ -95,4 +104,17 @@ float calculateHeading() {
     heading = 360 + heading;
   }
   return heading;
+}
+
+
+void write(unsigned int n){
+    int bin;
+    for (int i=0; i< 7; i++){
+        bin = (n / pow(2, i));
+        bin = (int) bin;
+        bin = bin % 2;
+        digitalWrite(outPins[i], bin);
+//        Serial.print(bin);
+    }
+//    Serial.print('\n');
 }

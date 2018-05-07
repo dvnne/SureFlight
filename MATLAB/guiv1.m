@@ -71,13 +71,6 @@ fopen(s);
 pause(2.5);
 
 [handles(:).s] = s;
-%set(handles.autoangle,'Enable','on')  %enable autoangle
-%     set(handles.polarlabel,'Enable','on')  %enable autoangle
-%     set(handles.polarinput,'Enable','on')  %enable autoangle
-%     set(handles.azimuthlabel,'Enable','on')  %enable autoangle
-%     set(handles.azimuthinput,'Enable','on')  %enable autoangle
-%     set(handles.movePolar,'Enable','on')  %enable move polar button
-%     set(handles.moveAzimuth,'Enable','on')  %enable move azimtuh button
 
 %flag setup
 flags.loadon = '5001';
@@ -107,6 +100,7 @@ switch answer
         end
 end
 
+%update rhe handles struct
 handles(:).flags = flags;
 guidata(hObject, handles);
 
@@ -134,8 +128,25 @@ function loadunload_Callback(hObject, eventdata, handles)
 %set( findall(handles.your_uipanel, '-property', 'Enable'), 'Enable', 'off')
 
 fprintf(handles.s,handles.flags.loadon);
+set(handles.polarinput,'Enable','off')  %disable
+set(handles.azimuthinput,'Enable','off')  %disable
+set(handles.movePolar,'Enable','off')  %disable move polar button
+set(handles.moveAzimuth,'Enable','off')  %disable move azimtuh button
+set(handles.zeropad, 'Enable', 'off')
+set(handles.loadunload, 'Enable', 'off')
+set(handles.manualmode, 'Enable', 'off')
+set(handles.autoangle, 'Enable', 'off')
 uiwait(LoadMessage) %makes whole GUI wait until load mode is exited
 fprintf(handles.s,handles.flags.loadoff);
+set(handles.polarinput,'Enable','on')  %disable
+set(handles.azimuthinput,'Enable','on')  %disable
+set(handles.movePolar,'Enable','on')  %disable move polar button
+set(handles.moveAzimuth,'Enable','on')  %disable move azimtuh button
+set(handles.zeropad, 'Enable', 'on')
+set(handles.loadunload, 'Enable', 'on')
+set(handles.manualmode, 'Enable', 'on')
+set(handles.autoangle, 'Enable', 'on')
+
 
 % --- Executes on button press in autoangle.
 function autoangle_Callback(hObject, eventdata, handles)
@@ -234,8 +245,7 @@ set(handles.autoangle, 'Enable', 'off')
 
 drawnow;
 fprintf(handles.s,handles.flags.zeroon);%tell motors to move to ideal angle
-flag = getCommand(handles.s, [str2num(handles.flags.calerror),...
-    str2num(handles.flags.limerror), str2num(handles.flags.zerooff)]); %waits for command from arduino
+flag = getCommand(handles.s, [str2num(handles.flags.calerror), str2num(handles.flags.zerooff)]); %waits for command from arduino
 
 set(handles.polarinput,'Enable','on')  %disable
 set(handles.azimuthinput,'Enable','on')  %disable
@@ -253,13 +263,6 @@ if flag == 8000
     set(handles.manualmode,'Value',0)  %disable manual mode
     set(handles.manualmode,'Enable','off')  %disable manual mode
     set(handles.autoangle,'Enable','off')  %disable manual mode
-elseif flag == 9000
-    errordlg('Pad not zeroed! Re-zero and try again.','Zeroing Error');
-    set(handles.status, 'String', 'NOT READY')
-    set(handles.status, 'BackgroundColor', [1 0 0])
-    set(handles.manualmode,'Value',0)  %disable manual mode
-    set(handles.manualmode,'Enable','off')  %disable manual mode
-    set(handles.autoangle,'Enable','off')  %disable auto mode
 else
     set(handles.status, 'String', 'Zeroed');
     set(handles.status, 'BackgroundColor', [.12 .56 1]);
@@ -363,7 +366,7 @@ if (0 <= str2num(handles.polar)) && (str2num(handles.polar) <= 360) && (rem(str2
         set(handles.manualmode,'Enable','off')  %disable manual mode
         set(handles.autoangle,'Enable','off')  %disable auto mode
     elseif flag == 9000
-        errordlg('Pad not zeroed! Re-zero and try again.','Zeroing Error');
+        errordlg('Limit switch hit! Please re-zero pad.','Limit Switch Error');
         set(handles.status, 'String', 'NOT READY')
         set(handles.status, 'BackgroundColor', [1 0 0])
         % We turn back on the interface
@@ -432,7 +435,7 @@ if (0<= str2num(handles.azimuth)) && (str2num(handles.azimuth) <= 20) && (rem(st
         set(handles.manualmode,'Enable','off')  %disable manual mode
         set(handles.autoangle,'Enable','off')  %disable auto mode
     elseif flag == 9000
-        errordlg('Pad not zeroed! Re-zero and try again.','Zeroing Error');
+        errordlg('Limit switch hit! Please re-zero pad.','Limit Switch Error');
         set(handles.status, 'String', 'NOT READY')
         set(handles.status, 'BackgroundColor', [1 0 0])
         set(handles.manualmode,'Value',0)  %disable manual mode

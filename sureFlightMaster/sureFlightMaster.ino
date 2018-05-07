@@ -4,17 +4,18 @@
 
 float Pi = 3.141592653589793238462643383279502884197169; // youre welcome davonne
 bool calibrated = 0;
-bool launch = 0;
 int guiState = 0;
 bool enabled = 0;
 bool zeroed = 0;
 
+int fanPin = 42;
+
 /* Set motor pins */
 // All motor values and pins are azimuth,polar
-int motor[] = {2,5};
-int dir[] = {3,6};
-int enable[] = {4,7};
-int limitSwitch = 18;
+int motor[] = {5,2};
+int dir[] = {6,3};
+int enable[] = {7,4};
+int limitSwitch = 12;
 int calibrateButton = 19;
 
 int pos[] = {0,0};
@@ -35,7 +36,7 @@ float voltageMax = 2.0; // Maximum output voltage from anemometer in V.
 float windSpeedMax = 32.4; // Wind speed in meters/sec corresponding to maximum voltage
 
 /* Wind Vane pins */
-int windVane[] = {30, 32, 34, 36, 38, 40, 42, 44};
+int windVane[] = {22, 24, 26, 28, 30, 32, 34};
 float windDir = 0;
 
 
@@ -55,6 +56,8 @@ void setup(void) {
 
   pinMode(limitSwitch, INPUT);
   pinMode(calibrateButton,INPUT);
+  pinMode(fanPin,INPUT);
+  digitalWrite(fanPin, HIGH);
   attachInterrupt(digitalPinToInterrupt(calibrateButton), calibratePolar, RISING);
 
   for (int i=0; i < 8; i++){
@@ -68,37 +71,39 @@ void loop() {
   if(Serial.available()>0) {
     guiState=Serial.parseInt();
 
-    if (guiState < 3602) {
-      if (calibrated) {
+    if ((guiState < 4602) && (guiState > 999)) {
+      
+      if (calibrated == 1) {
         manualMotors();
       } else {
         uncalibrated();
       }
     }
     
-    } else if(guiState == 4000) { // load mode activated by GUI 
-        disableMotors();
-    } else if(guiState == 4001) { // load mode deactivated by GUI 
+    } else if(guiState == 5000) { // load mode deactivated by GUI 
         enableMotors();
+    } else if(guiState == 5001) { // load mode activated by GUI 
+        disableMotors();
 
     } else if(guiState == 6001) { // zero mode activated by GUI
 
-      if (calibrated) {
+      if (calibrated == 1) {
         zeroMotors();
         Serial.println(6000); // tells GUI done zeroing
+        guiState = 6000;
       } else {
         uncalibrated();
       }
 
     } else if (guiState == 7001){ //AAD activated by GUI
-      if (calibrated) {
-        AAD(); 
-        Serial.println(7000); // tells GUI done with AAD
+      if (calibrated == 1) {
+        AAD();
       } else {
         uncalibrated();
       }
 
     }
+    //Serial.println(guiState);
 }
 
 void uncalibrated() {
@@ -106,33 +111,42 @@ void uncalibrated() {
 }
 
 void AAD() {
+  int moveStat = 1;
   if (zeroed == 0) {
     zeroMotors();
   }
 	getWindDirection();
 	getWindSpeed();
 
-	int azimuthAngle = 0;
-	int polarAngle = 0;
+	int azimuthAngle = atan2(windSpeed,500) * 5;
+	int polarAngle = windDir;
 
-	moveAngles(azimuthAngle, polarAngle);
-  launch = 1;
+	moveStat = moveAngles(azimuthAngle, polarAngle);
+  if (moveStat == 1) {
+    guiState = 7000;
+    Serial.println(7000); // tells GUI done with AAD
+  }
 
 }
 
 void manualMotors(){
+  int moveStat = 1;
   if (zeroed == 0) {
     zeroMotors();
   }
   int selectedMotor = guiState%2;
-  int selectedAngle = guiState/10;
+  int selectedAngle = (guiState/10) - 100;
   if (selectedMotor == 0) {
-    moveAngles(selectedAngle, pos[1]);
+    moveStat = moveAngles(selectedAngle, pos[1]);
   }
   else {
-    moveAngles(pos[0], selectedAngle);
+    moveStat = moveAngles(pos[0], selectedAngle);
   }
-  Serial.println(9999);
+
+  if (moveStat == 1) {
+    guiState = 9999;
+    Serial.println(9999);
+  }
 }
 
 ////////////////////////////
@@ -153,16 +167,18 @@ void enableMotors() {
 }
 
 int calcSteps(int m, int angle){
+
   int steps;
   float rotation = angle/360.; // fraction of arc to rotate
-  Serial.print("Setting Rotation to ");
-  Serial.println(rotation);
-  steps = (angle * stepsPerRotation)/360;
+
+  steps = rotation * stepsPerRotation;
   steps = steps * gearRatio[m];
+  Serial.print("Setting steps to ");
+  Serial.println(steps);
   return steps;
 }
 
-void setPosition(int m, int curPosition, int position) {
+int setPosition(int m, int curPosition, int position) {
   int disp = position - curPosition; // number of steps needed
   // define sign: false = polar clockwise, down azimuth
   bool sign;
@@ -172,26 +188,39 @@ void setPosition(int m, int curPosition, int position) {
   Serial.print("Setting Position -- Displacement = ");
   Serial.println(disp);
   if (disp != 0) {
-    if (m == 0 and digitalRead(limitSwitch) == HIGH) {
+    if (false) { //m == 0 and digitalRead(limitSwitch) == HIGH) {
       pos[0] = 0;
       Serial.println(9000);
-      return;
+      return 0;
     } else{
       step(m, abs(disp),sign);
     }
   }
+  return 1;
 }
 
-void moveAngles(int azimuthAngle, int polarAngle) {
+int moveAngles(int azimuthAngle, int polarAngle) {
+  Serial.print("Setting angles to ");
+  Serial.print(azimuthAngle);
+  Serial.print(", ");
+  Serial.println(polarAngle);
+  int motostat = 1;
 	if (azimuthAngle <= 20 && polarAngle <= 360) {
     int newAzimuth = calcSteps(0, azimuthAngle); // units of steps
-    setPosition(0, pos[0], newAzimuth);
-    pos[0] = newAzimuth;
-
+    motostat = setPosition(0, pos[0], newAzimuth);
+    if (motostat == 1) {
+      pos[0] = newAzimuth;
+    } else {
+      pos[0] = 0;
+      return 0;
+    }
     int newPolar = calcSteps(1, polarAngle);
+    Serial.print("Steps calculated: ");
+    Serial.println(newPolar);
     setPosition(1, pos[1],newPolar);
     pos[1] = newPolar;
   }
+  return 1;
 }
 
 void step(int m, int steps, int direction){
@@ -213,13 +242,14 @@ void zeroMotors() {
 		step(0, 1, HIGH);
 		
 	}
-	step(0,pos[1],HIGH);
+	step(1,pos[1],HIGH);
 	pos[0] = 0;
-	pos[1] = 1;
+	pos[1] = 0;
   zeroed = 1;
 }
 
 void calibratePolar() {
+  Serial.println("calibrated");
   calibrated = 1;
   pos[1] = 0;
 }
@@ -232,7 +262,7 @@ void getWindDirection() {
 	// read input from other arduino
 
   unsigned int n = 0;
-    for (int i=7; i > -1; i--){
+    for (int i=6; i > -1; i--){
         int b = digitalRead(windVane[i]);
         Serial.print(b);
         if (b){
@@ -242,7 +272,10 @@ void getWindDirection() {
             n += t;
         }
     }
-   windDir = n;
+    
+   windDir = map(n,0,127,0,360);
+   Serial.print("winddir: ");
+   Serial.println(windDir);
 
 }
 
@@ -256,5 +289,7 @@ void getWindSpeed() {
 		//For voltages above minimum value, use the linear relationship to calculate wind speed.
   		windSpeed = (anemometerVoltage - voltageMin)*windSpeedMax/(voltageMax - voltageMin);
 	}
+ Serial.print("windspeed: ");
+ Serial.println(windSpeed);
 }
 
