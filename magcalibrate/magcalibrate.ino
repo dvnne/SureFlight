@@ -27,7 +27,6 @@ void setup(void) {
   Serial.begin(9600); 
   /* Initialise the sensor */
   if(!mag.begin()) {
-    /* There was a problem detecting the LSM303 ... check your connections */
     Serial.println("Ooops, no LSM303 detected ... Check your wiring!");
     while(1);
   }
@@ -38,9 +37,11 @@ void loop(void) {
   static unsigned long time = 0;
   static unsigned long oldTime = 0;
   int T = 500;
+  float windSpeed;
   time = millis() / T;
   // Event Actions
   getMagnetometerEvent();
+  windSpeed = getWindSpeed();
   float heading = calculateHeading();
   // SEND HEADING TO MEGA
   int sendVal = map(heading,0,360,0,127);
@@ -49,10 +50,12 @@ void loop(void) {
   if (time != oldTime) { // Run every T milliseconds
     Serial.print("Compass Heading: ");
     Serial.println(heading); // Print compass heading
-    Serial.print("Button Reading");
-    Serial.println(digitalRead(button));
-    Serial.print("7 bit number: ");
-    Serial.println(sendVal);
+    Serial.print("Wind Speed: ");
+    Serial.print(windSpeed);
+    Serial.println(" m/s");
+    Serial.print("Set lift angle to: ");
+    Serial.print(atan2(windSpeed, 500)*180/Pi*12);
+    Serial.println(" degrees");
     oldTime = time;
   }
   // BUTTON EVENTS
@@ -75,7 +78,6 @@ float getCalibrationData() {
 }
 
 void calibrateMagnetometer() {
-  Serial.print("{xmax, ymax, xmin, ymin}");
   Serial.println(xmax);
   Serial.println(ymax);
   Serial.println(xmin);
@@ -117,4 +119,12 @@ void write(unsigned int n){
 //        Serial.print(bin);
     }
 //    Serial.print('\n');
+}
+
+float getWindSpeed() {
+  float v;
+  v = analogRead(A0); // 0 -> (2/5) * 1023
+  float speed;
+  speed = map(v, 0.4*1023/5, 2*1023/5, 0, 34);
+  return speed;
 }
